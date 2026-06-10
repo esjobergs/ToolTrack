@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToolTrack Stats</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://teslamotorsinc.sharepoint.com/sites/TeslaSE-EHS/Shared%20Documents/Shared%20Documents/DashboardData/ehs_machines.js"></script>
+<script src="https://teslamotorsinc.sharepoint.com/sites/TeslaSE-EHS/Shared%20Documents/Shared%20Documents/DashboardData/ehs_checks.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f5f5;--surface:#fff;--surface2:#fafafa;--border:#e5e5e5;--text:#171a20;--text2:#5c5e62;--text3:#9b9da1;--accent:#e82127;--green:#2e7d32;--green-bg:#e8f5e9;--amber:#f57f17;--amber-bg:#fff8e1;--red:#c62828;--red-bg:#ffebee;--radius:6px}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;font-size:14px}
+
+/* HEADER */
+.header{background:#171a20;color:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center}
+.header-left{display:flex;align-items:center;gap:14px}
+.header h1{font-size:.88rem;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:#d0d0d0}
+.header button{background:transparent;color:#888;border:1px solid #333;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:.75rem;transition:all .15s}
+.header button:hover{color:#fff;border-color:#666}
+.container{max-width:1480px;margin:0 auto;padding:16px 20px}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.kpi-card{background:var(--surface);border-radius:var(--radius);padding:14px 16px;border:1px solid var(--border)}
+.kpi-card .lbl{font-size:.62rem;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+.kpi-card .val{font-size:1.6rem;font-weight:700;margin-top:2px;color:var(--text)}
+.kpi-card .sub{font-size:.7rem;color:var(--text3);margin-top:1px}
+.kpi-card.primary{border-left:3px solid var(--text)}
+.kpi-card.primary .val{font-size:2rem}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.highlight-green{color:var(--green)!important}
+.highlight-red{color:var(--red)!important}
+.highlight-amber{color:var(--amber)!important}
+
+/* FILTERS */
+.filter-bar{background:var(--surface);border-radius:var(--radius);padding:10px 14px;border:1px solid var(--border);margin-bottom:4px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:2px;min-width:115px;position:relative}
+.filter-group label{font-size:.6rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.filter-group input[type="date"]{padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:.78rem;background:#fff;color:var(--text)}
+.filter-group input:focus{outline:none;border-color:var(--text2)}
+.ms-btn{padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:.78rem;background:#fff;color:var(--text);cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:105px;display:flex;justify-content:space-between;align-items:center;gap:4px}
+.ms-btn:hover{border-color:var(--text2)}
+.ms-btn .arr{font-size:.45rem;color:var(--text3)}
+.ms-panel{display:none;position:absolute;top:100%;left:0;z-index:100;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.08);min-width:180px;max-height:250px;margin-top:3px}
+.ms-panel.open{display:block}
+.ms-actions{display:flex;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border)}
+.ms-actions button{font-size:.68rem;color:var(--text2);background:none;border:none;cursor:pointer;text-decoration:underline}
+.ms-list{overflow-y:auto;max-height:195px;padding:2px 0}
+.ms-item{display:flex;align-items:center;gap:7px;padding:4px 10px;cursor:pointer;font-size:.78rem}
+.ms-item:hover{background:var(--surface2)}
+.ms-item input[type="checkbox"]{accent-color:var(--text);cursor:pointer}
+.btn-apply{padding:6px 14px;border-radius:4px;font-size:.78rem;cursor:pointer;border:1px solid var(--text);background:var(--text);color:#fff;font-weight:500}
+.btn-apply:hover{background:#333}
+.btn-reset{padding:6px 10px;border-radius:4px;font-size:.78rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text3)}
+.btn-reset:hover{background:var(--border)}
+#fSum{padding:5px 14px;margin-bottom:14px;font-size:.7rem;color:var(--text3);display:none;background:var(--surface);border:1px solid var(--border);border-radius:4px}
+.af-tag{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 6px;font-size:.68rem;display:inline-block;margin:1px 2px;color:var(--text2)}
+
+/* TABS */
+.tab-bar{display:flex;margin-bottom:16px;border-bottom:1px solid var(--border);gap:0}
+.tab-btn{padding:10px 18px;border:none;background:transparent;cursor:pointer;font-size:.78rem;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;transition:all .15s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--text);border-bottom-color:var(--text)}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* CALENDAR HEATMAP - horizontal full width */
+.cal-section{background:var(--surface);border-radius:var(--radius);padding:16px;border:1px solid var(--border);margin-bottom:16px;overflow-x:auto}
+.cal-section h3{font-size:.8rem;font-weight:600;margin-bottom:12px;color:var(--text2)}
+.cal-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.cal-table th{font-size:.58rem;color:var(--text3);font-weight:500;text-transform:uppercase;padding:4px 2px;text-align:center;letter-spacing:.3px}
+.cal-table td{text-align:center;padding:3px 1px;vertical-align:top}
+.cal-cell{border-radius:4px;padding:4px 2px;font-size:.65rem;min-height:36px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:1px solid transparent}
+.cal-cell .cd{font-weight:600;font-size:.72rem}
+.cal-cell .cp{font-size:.55rem}
+.cal-cell.perfect{background:var(--green-bg);color:var(--green);border-color:#c8e6c9}
+.cal-cell.good{background:#f1f8e9;color:#558b2f;border-color:#dcedc8}
+.cal-cell.partial{background:var(--amber-bg);color:var(--amber);border-color:#ffecb3}
+.cal-cell.missed{background:var(--red-bg);color:var(--red);border-color:#ffcdd2}
+.cal-cell.off{background:var(--surface2);color:var(--border)}
+.cal-cell.future{background:var(--surface2);color:var(--border)}
+.cal-cell.today{box-shadow:inset 0 0 0 2px var(--text)}
+.cal-legend{display:flex;gap:14px;margin-top:10px;font-size:.65rem;color:var(--text3)}
+.cal-dot{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:middle}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.chart-card{background:var(--surface);border-radius:var(--radius);padding:14px;border:1px solid var(--border)}
+.chart-card h3{font-size:.75rem;margin-bottom:8px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.3px}
+
+/* TABLES */
+.table-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;margin-bottom:16px}
+.table-header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.table-header h3{font-size:.82rem;font-weight:500}
+.table-search{padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:.78rem;width:200px;background:#fff}
+.table-search:focus{outline:none;border-color:var(--text2)}
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{text-align:left;padding:7px 12px;font-size:.65rem;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;z-index:1}
+.data-table th:hover{color:var(--text)}
+.data-table td{padding:7px 12px;font-size:.78rem;border-bottom:1px solid var(--border)}
+.data-table tr:hover td{background:var(--surface2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:.68rem;font-weight:600}
+.badge-ok{background:var(--green-bg);color:var(--green)}
+.badge-nok{background:var(--red-bg);color:var(--red)}
+.badge-warn{background:var(--amber-bg);color:var(--amber)}
+.badge-na{background:var(--surface2);color:var(--text3)}
+.table-footer{padding:8px 16px;display:flex;justify-content:space-between;align-items:center;font-size:.72rem;color:var(--text3);border-top:1px solid var(--border)}
+.pagination{display:flex;gap:2px}
+.pagination button{padding:4px 8px;border:1px solid var(--border);border-radius:3px;background:#fff;color:var(--text3);cursor:pointer;font-size:.72rem}
+.pagination button.active{background:var(--text);color:#fff;border-color:var(--text)}
+.pagination button:disabled{opacity:.3;cursor:default}
+
+/* MISSED MATRIX - compact, no scroll */
+.matrix-wrap{overflow-x:auto}
+.matrix-table{border-collapse:collapse;font-size:.65rem;width:100%;table-layout:fixed}
+.matrix-table th,.matrix-table td{padding:3px 2px;border:1px solid var(--border);text-align:center;white-space:nowrap;overflow:hidden}
+.matrix-table th{background:var(--surface2);color:var(--text3);font-weight:500;font-size:.58rem;text-transform:uppercase;position:sticky;top:0;z-index:2}
+.matrix-table td.mid{text-align:left;font-weight:500;background:var(--surface2);position:sticky;left:0;z-index:1;min-width:90px;max-width:110px;font-size:.62rem;overflow:hidden;text-overflow:ellipsis}
+.matrix-table td.missed{color:var(--red)}
+.matrix-table td.done{color:var(--green)}
+.matrix-summary{display:flex;gap:14px;margin-bottom:10px;font-size:.75rem;color:var(--text2);flex-wrap:wrap}
+.error-banner{background:var(--red-bg);color:var(--red);padding:10px 16px;border-radius:var(--radius);margin-bottom:10px;display:none;border:1px solid #ffcdd2;font-size:.8rem}
+.error-banner.active{display:block}
+@media(max-width:1024px){.chart-grid{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:768px){.kpi-row{grid-template-columns:repeat(2,1fr)}.filter-bar{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAY4AAAAmCAYAAADTPHxLAAAACXBIWXMAAAsSAAALEgHS3X78AAADe0lEQVR42u3d4U3bQBjG8QeU72QDsgFhgpoJygZ1Jmg2iDNBwwbOBmGCOhukG4QJ6kzgfvC5RRE4pMT2+9r/nxQJARKn12c/d/b5uCqKIpYUy6fIabs91TyivtT1SFbzszR8cJ6ppJWTts5H4YsvDgv97LiT7J3U3GuNJ8br67nvnrpeZGTAf18TppJujLfzIGl/HUYHLw4LvXLcSTInNV9xPjcioQQ4kjuZqaWS8utq6uGsyNsejGxiajxIT5J2lAHvDCgOxmcbiSRVwbGRtHZS3IOkxx50kixcRKjxcKwdDtLQ7qzD8oAyDm38GxzVN62Hx4vKh4p5TzrK3GDNDz2rsaWZRkwZcMJG0sxgu2ahbToOjio8lkanS88qHx71bZofh4NioeZblQ+WuZVy2cHOAzMNnCGVdC8bz0Gr/pu+/ubojV9Mwi/NVd6uuO149LsJ7cl63lE2+reM9K7ljpENoMav+1QbwZi/6rvAuXZhEFddE9peJbhVzdLqq6IoLvnHxpJ+1/x8KVaUoHmJpEXNCRFRok8pOMeH7bqBURYAgOAAAIDgAAAQHAAAggMAYMqIEnRiEj4eZD2r/Vjdr6rKxbsyeLtvTj30L4KjG4+Sfjho54ujgPuoO0k/O24DS4LxlqmBvnnKg6SMW1Xd2DhpZ8qhAnCM4OjGXnY3OKwcxLbqAAgOUxLZ/p8cc/FCJwCCw5Rc5bMOixtKrsVtKgAEh0k7lQ9JLc082P4bAMHhIDym4YLd5exjK7b/BvABLMe1IQ8X7ETl7atJy387U7/eK0jV/fsnsaRvdG1c0FrlwpqmLQgOfwGSUoZP27d0gtWJOAxwOiA6GRzcqgIAnIXgAAAQHAAAggMAQHAAADxiVVU3JmJb9a5ELR5jgODAxbCtevtBPVf5bsUN3a9RC31gOWeDZmJJe+O4VdWNlHa2JlH5cuN3QmMQNpSA4OirXNLSeBu9b6s+DoGxIDAGYy12dCY4em4l6Zfh9sWOT8JJCI07utlgHMQ+awTHQGYdsWxuq/7keMo/Dm2/pYsNiueBDsGBs1TbqluaeSydj9xSZhqDm2nMxLMNgmOg4bFU99uq36t8mOxVJOkrXWowtir/JUFKKdp1VRRFEyfve/bqftdSDxe/tvXluEThs5Pt2xa5fG9jb2Fwkal/7xiNQxDWDTLzls6j2jb8AadWvW73ffqMAAAAAElFTkSuQmCC" alt="Tesla" style="height:18px">
+    <h1>ToolTrack Stats</h1>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center">
+    <span id="lastUpd" style="font-size:.68rem;color:#666;margin-right:8px"></span>
+    <button onclick="exportCSV()">Export</button>
+  </div>
+</div>
+<div class="container">
+<div class="error-banner" id="err"></div>
+
+<div class="kpi-row">
+  <div class="kpi-card primary"><div class="lbl">Completion</div><div class="val" id="kComp">-</div><div class="sub" id="kCompS"></div><div class="progress-bar"><div class="progress-fill" id="kBar" style="width:0%"></div></div></div>
+  <div class="kpi-card"><div class="lbl">Completed</div><div class="val highlight-green" id="kDone">-</div><div class="sub" id="kDoneS"></div></div>
+  <div class="kpi-card"><div class="lbl">Missed</div><div class="val" id="kMissed">-</div><div class="sub" id="kMissedS"></div></div>
+  <div class="kpi-card"><div class="lbl">Passed</div><div class="val" id="kOk">-</div><div class="sub" id="kOkS"></div></div>
+  <div class="kpi-card"><div class="lbl">Failed</div><div class="val" id="kNok">-</div><div class="sub" id="kNokS"></div></div>
+  <div class="kpi-card"><div class="lbl">Machines</div><div class="val" id="kMach">-</div><div class="sub" id="kMachS"></div></div>
+</div>
+
+<div class="filter-bar">
+  <div class="filter-group"><label>Service Center</label><div id="fSC"></div></div>
+  <div class="filter-group"><label>Machine Type</label><div id="fMT"></div></div>
+  <div class="filter-group"><label>Tool Type</label><div id="fTT"></div></div>
+  <div class="filter-group"><label>Status</label><div id="fST"></div></div>
+  <div class="filter-group"><label>Week</label><div id="fWK"></div></div>
+  <div class="filter-group"><label>From</label><input type="date" id="fFrom"></div>
+  <div class="filter-group"><label>To</label><input type="date" id="fTo"></div>
+  <div style="display:flex;gap:4px;align-items:flex-end;margin-left:auto"><button class="btn-apply" onclick="apply()">Apply</button><button class="btn-reset" onclick="reset()">Reset</button></div>
+</div>
+<div id="fSum"></div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="overview" onclick="tab('overview')">Overview</button>
+  <button class="tab-btn" data-tab="checks" onclick="tab('checks')">Inspections</button>
+  <button class="tab-btn" data-tab="machines" onclick="tab('machines')">Machines</button>
+  <button class="tab-btn" data-tab="missed" onclick="tab('missed')">Missed</button>
+  <button class="tab-btn" data-tab="failed" onclick="tab('failed')">Failed</button>
+</div>
+
+<div class="tab-content active" id="tab-overview">
+  <div class="cal-section">
+    <h3>Inspection Coverage</h3>
+    <div id="calGrid"></div>
+    <div class="cal-legend">
+      <span><span class="cal-dot" style="background:var(--green-bg);border:1px solid #c8e6c9"></span>100%</span>
+      <span><span class="cal-dot" style="background:#f1f8e9;border:1px solid #dcedc8"></span>75-99%</span>
+      <span><span class="cal-dot" style="background:var(--amber-bg);border:1px solid #ffecb3"></span>1-74%</span>
+      <span><span class="cal-dot" style="background:var(--red-bg);border:1px solid #ffcdd2"></span>0%</span>
+      <span><span class="cal-dot" style="background:var(--surface2);border:1px solid var(--border)"></span>Off / Future</span>
+      <span style="margin-left:8px">&#9632; = Today</span>
+    </div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card"><h3>Results</h3><canvas id="chSt"></canvas></div>
+    <div class="chart-card"><h3>By Service Center</h3><canvas id="chSC"></canvas></div>
+    <div class="chart-card"><h3>Monthly Trend</h3><canvas id="chTm"></canvas></div>
+    <div class="chart-card"><h3>By Machine Type</h3><canvas id="chMT"></canvas></div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-checks"><div class="table-card"><div class="table-header"><h3>Inspections <span id="cCnt" style="color:var(--text3);font-weight:400"></span></h3><input class="table-search" id="cSrch" placeholder="Search..." oninput="rCT()"></div><div style="overflow-x:auto;max-height:600px;overflow-y:auto"><table class="data-table"><thead><tr><th onclick="sC('InspDate')">Date</th><th onclick="sC('Week')">Wk</th><th onclick="sC('ServiceCenter')">SC</th><th onclick="sC('MachineType')">Type</th><th onclick="sC('ToolType')">Tool</th><th onclick="sC('Title')">Machine</th><th onclick="sC('Status')">Status</th><th onclick="sC('Inspector')">Inspector</th><th>Notes</th></tr></thead><tbody id="cBody"></tbody></table></div><div class="table-footer"><span id="cInfo"></span><div class="pagination" id="cPag"></div></div></div></div>
+
+<div class="tab-content" id="tab-machines"><div class="table-card"><div class="table-header"><h3>Machines <span id="mCnt" style="color:var(--text3);font-weight:400"></span></h3><input class="table-search" id="mSrch" placeholder="Search..." oninput="rMT()"></div><div style="overflow-x:auto;max-height:600px;overflow-y:auto"><table class="data-table"><thead><tr><th onclick="sM('Title')">Name</th><th onclick="sM('MachineID')">ID</th><th onclick="sM('ServiceCenter')">SC</th><th onclick="sM('MachineType')">Type</th><th onclick="sM('ToolType')">Tool</th><th onclick="sM('SerialNumber')">Serial</th><th onclick="sM('Frequency')">Freq.</th><th onclick="sM('LastInspection')">Last Insp.</th><th onclick="sM('LastStatus')">Status</th></tr></thead><tbody id="mBody"></tbody></table></div><div class="table-footer"><span id="mInfo"></span><div class="pagination" id="mPag"></div></div></div></div>
+
+<div class="tab-content" id="tab-missed"><div class="table-card"><div class="table-header"><h3>Missed Inspections</h3></div><div style="padding:14px"><div class="matrix-summary" id="miSum"></div><div class="matrix-wrap" id="miMat"></div></div></div></div>
+
+<div class="tab-content" id="tab-failed"><div class="table-card"><div class="table-header"><h3>Failed Inspections <span id="fCnt" style="color:var(--text3);font-weight:400"></span></h3><input class="table-search" id="fSrch" placeholder="Search..." oninput="rFT()"></div><div style="overflow-x:auto;max-height:600px;overflow-y:auto"><table class="data-table"><thead><tr><th onclick="sF('InspDate')">Date</th><th onclick="sF('ServiceCenter')">SC</th><th onclick="sF('MachineType')">Type</th><th onclick="sF('Title')">Machine</th><th onclick="sF('Status')">Status</th><th onclick="sF('Inspector')">Inspector</th><th>Notes</th></tr></thead><tbody id="fBody"></tbody></table></div><div class="table-footer"><span id="fInfo"></span><div class="pagination" id="fPag"></div></div></div></div>
+</div>
+
+<script>
+const PS=25,DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Holidays
+function getHol(y){const h=new Set(),a=(m,d)=>h.add(`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);a(1,1);a(1,6);a(5,1);a(6,6);a(12,24);a(12,25);a(12,26);a(12,31);const aa=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),hh=(19*aa+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-hh-k)%7,m=Math.floor((aa+11*hh+22*l)/451),mo=Math.floor((hh+l-7*m+114)/31),da=((hh+l-7*m+114)%31)+1;const easter=new Date(y,mo-1,da,12,0,0),ao=off=>{const d2=new Date(easter.getFullYear(),easter.getMonth(),easter.getDate()+off,12,0,0);const ds=d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');h.add(ds)};ao(-2);ao(0);ao(1);ao(39);ao(49);for(let dd=19;dd<=25;dd++){const dt=new Date(y,5,dd);if(dt.getDay()===5){a(6,dd);a(6,dd+1);break}}for(let dd=31;dd<=37;dd++){const m2=dd>31?10:9,d2=dd>31?dd-31:dd,dt=new Date(y,m2,d2);if(dt.getDay()===6){h.add(`${y}-${String(m2+1).padStart(2,'0')}-${String(d2).padStart(2,'0')}`);break}}return h}
+const _hc={};function isBiz(ds){const d=new Date(ds+'T12:00:00');if(d.getDay()===0||d.getDay()===6)return false;const y=d.getFullYear();if(!_hc[y])_hc[y]=getHol(y);return!_hc[y].has(ds)}
+function bizCount(f,t){let c=0;const d=new Date(f+'T12:00:00'),e=new Date(t+'T12:00:00');while(d<=e){if(isBiz(d.toISOString().slice(0,10)))c++;d.setDate(d.getDate()+1)}return c}
+function bizList(f,t){const r=[];const d=new Date(f+'T12:00:00'),e=new Date(t+'T12:00:00');while(d<=e){const ds=d.toISOString().slice(0,10);if(isBiz(ds))r.push(ds);d.setDate(d.getDate()+1)}return r}
+function allDays(f,t){const r=[];const d=new Date(f+'T12:00:00'),e=new Date(t+'T12:00:00');while(d<=e){r.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1)}return r}
+function today(){return new Date(new Date().setHours(12,0,0,0)).toISOString().slice(0,10)}
+
+// Helpers
+function spV(v){if(v==null)return'';if(typeof v==='string')return v;if(typeof v==='number')return v;if(typeof v==='boolean')return v;if(v.Value!==undefined)return v.Value;if(v.LookupValue!==undefined)return v.LookupValue;if(v.DisplayName!==undefined)return v.DisplayName;if(v.Email!==undefined)return v.Email;if(Array.isArray(v))return v.map(spV).join(', ');return String(v)}
+function pDate(d){if(!d)return'';const m=String(d).match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:''}
+function fDate(o){for(const k of['Modified','modified','CheckDate','checkdate','Date','date','Created']){if(o[k]){const p=pDate(o[k]);if(p)return p}}for(const k of Object.keys(o)){const m=String(o[k]||'').match(/^(\d{4}-\d{2}-\d{2})/);if(m)return m[1]}return''}
+function isoWk(ds){if(!ds)return 0;const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+3-((d.getDay()+6)%7));const ys=new Date(d.getFullYear(),0,4);ys.setDate(ys.getDate()+3-((ys.getDay()+6)%7));return 1+Math.round((d-ys)/604800000)}
+function wkL(ds){return ds?'W'+String(isoWk(ds)).padStart(2,'0'):''}
+
+// Data
+let rM=[],rC=[],fC=[],fM=[],ci={};
+let cc='InspDate',cd=-1,mc='LastInspection',md=-1,fc='InspDate',fd=-1,cp=1,mp=1,fp=1;
+
+function load(){
+  const mr=window.MACHINES_DATA,cr=window.CHECKS_DATA;
+  if(!mr&&!cr){showErr('No data found.');return}
+  rM=(Array.isArray(mr)?mr:(mr?.value||[])).map(nM);
+  rC=(Array.isArray(cr)?cr:(cr?.value||[])).map(nC);
+  document.getElementById('lastUpd').textContent=new Date().toLocaleString('sv-SE')+' \u2014 '+rM.length+' machines, '+rC.length+' inspections';
+  popFilters();apply();
+}
+
+function nM(m){return{Title:spV(m.Title??''),ServiceCenter:spV(m.ServiceCenter??m.Service_x0020_Center??''),MachineType:spV(m.MachineType??m.Machine_x0020_Type??''),ToolType:spV(m.ToolType??''),Frequency:spV(m.Frequency??''),SerialNumber:spV(m.SerialNumber??m.Serialnumber??''),MachineID:spV(m.MachineID??''),MachineNumber:spV(m.MachineNumber??''),LastInspection:pDate(m.LastInspection??m.Modified??''),LastStatus:spV(m.LastStatus??'')}}
+
+function nC(c){const dt=fDate(c);return{Title:spV(c.Title??''),ServiceCenter:spV(c.ServiceCenter??c.Service_x0020_Center??''),MachineType:spV(c.MachineType??c.Machine_x0020_Type??''),Status:spV(c.Status??''),Inspector:spV(c.Inspector??''),Notes:spV(c.Notes??''),InspDate:dt,Week:wkL(dt),Serialnumber:spV(c.Serialnumber??c.serialnumber??c.SerialNumber??''),ToolType:spV(c.ToolType??''),Frequency:spV(c.Frequency??'')}}
+
+// Multiselect
+const ms={};
+function createMS(id,opts){const el=document.getElementById(id);ms[id]={sel:new Set(),opts};el.innerHTML=`<button class="ms-btn" onclick="event.stopPropagation();tglP('${id}')"><span>All</span><span class="arr">\u25BE</span></button><div class="ms-panel" id="${id}_p" onclick="event.stopPropagation()"><div class="ms-actions"><button onclick="msA('${id}')">All</button><button onclick="msN('${id}')">None</button></div><div class="ms-list" id="${id}_l"></div></div>`;rMS(id,opts)}
+function rMS(id,opts){const l=document.getElementById(id+'_l'),s=ms[id];l.innerHTML='';const validOpts=opts.filter(o=>o);validOpts.sort().forEach(o=>{const it=document.createElement('div');it.className='ms-item';const cb=document.createElement('input');cb.type='checkbox';cb.checked=s.sel.size===0||s.sel.has(o);function tg(e){e.stopPropagation();if(cb.checked){s.sel.add(o)}else{if(s.sel.size===0){validOpts.forEach(x=>s.sel.add(x))}s.sel.delete(o)}if(s.sel.size===validOpts.length)s.sel.clear();uML(id)}cb.addEventListener('click',function(e){e.stopPropagation()});cb.addEventListener('change',tg);const sp=document.createElement('span');sp.textContent=o;sp.style.cursor='pointer';sp.addEventListener('click',function(e){e.stopPropagation();cb.checked=!cb.checked;tg(e)});it.appendChild(cb);it.appendChild(sp);l.appendChild(it)});s.opts=opts}
+function uML(id){const s=ms[id],sp=document.getElementById(id).querySelector('.ms-btn span');sp.textContent=s.sel.size===0?'All':s.sel.size===1?[...s.sel][0]:s.sel.size+' sel.'}
+function tglP(id){document.querySelectorAll('.ms-panel.open').forEach(p=>{if(p.id!==id+'_p')p.classList.remove('open')});document.getElementById(id+'_p').classList.toggle('open')}
+function msA(id){ms[id].sel.clear();rMS(id,ms[id].opts);uML(id)}
+function msN(id){ms[id].sel.clear();document.getElementById(id+'_l').querySelectorAll('input').forEach(cb=>cb.checked=false);uML(id)}
+function msG(id){return ms[id]?.sel||new Set()}
+document.addEventListener('click',()=>document.querySelectorAll('.ms-panel.open').forEach(p=>p.classList.remove('open')));
+
+function popFilters(){const a=[...rC,...rM];createMS('fSC',uniq(a,'ServiceCenter'));createMS('fMT',uniq(a,'MachineType'));createMS('fTT',uniq(a,'ToolType'));createMS('fST',uniq(rC,'Status'));createMS('fWK',uniq(rC,'Week'))}
+function uniq(a,f){const s=new Set();a.forEach(i=>{if(i[f])s.add(i[f])});return[...s]}
+
+function apply(){
+  const sc=msG('fSC'),mt=msG('fMT'),tt=msG('fTT'),st=msG('fST'),wk=msG('fWK'),fr=document.getElementById('fFrom').value,to=document.getElementById('fTo').value;
+  fC=rC.filter(c=>{if(sc.size&&!sc.has(c.ServiceCenter))return false;if(mt.size&&!mt.has(c.MachineType))return false;if(tt.size&&!tt.has(c.ToolType))return false;if(st.size&&!st.has(c.Status))return false;if(wk.size&&!wk.has(c.Week))return false;if(fr&&c.InspDate&&c.InspDate<fr)return false;if(to&&c.InspDate&&c.InspDate>to)return false;return true});
+  fM=rM.filter(m=>{if(sc.size&&!sc.has(m.ServiceCenter))return false;if(mt.size&&!mt.has(m.MachineType))return false;if(tt.size&&!tt.has(m.ToolType))return false;return true});
+  cp=1;mp=1;fp=1;
+  // Filter summary
+  const el=document.getElementById('fSum'),tags=[];
+  if(sc.size)tags.push('SC: '+[...sc].join(', '));if(mt.size)tags.push('Type: '+[...mt].join(', '));if(tt.size)tags.push('Tool: '+[...tt].join(', '));if(st.size)tags.push('Status: '+[...st].join(', '));if(wk.size)tags.push('Week: '+[...wk].join(', '));if(fr)tags.push('From: '+fr);if(to)tags.push('To: '+to);
+  if(tags.length){el.style.display='flex';el.style.flexWrap='wrap';el.style.gap='4px';el.style.alignItems='center';el.innerHTML='<b style="margin-right:4px">Filters:</b>'+tags.map(t=>'<span class="af-tag">'+t+'</span>').join('')}else el.style.display='none';
+  updKPI();renderCal();renderCharts();rCT();rMT();renderMissed();rFT();
+}
+function reset(){['fSC','fMT','fTT','fST','fWK'].forEach(msA);document.getElementById('fFrom').value='';document.getElementById('fTo').value='';apply()}
+
+function isOk(s){if(!s)return false;return'ok pass approved godkänd godkand'.split(' ').includes(s.toLowerCase())}
+function isNok(s){if(!s)return false;return'nok fail failed rejected underkänd underkand'.split(' ').includes(s.toLowerCase())}
+
+// KPIs
+function updKPI(){
+  const tot=fC.length,ok=fC.filter(c=>isOk(c.Status)).length,nok=fC.filter(c=>isNok(c.Status)).length;
+  const dailyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='daily');
+  const weeklyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='weekly');
+  const monthlyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='monthly');
+  const daily=dailyM.length,weekly=weeklyM.length,monthly=monthlyM.length;
+  document.getElementById('kMach').textContent=fM.length;
+  document.getElementById('kMachS').textContent=daily+' daily, '+weekly+' weekly, '+monthly+' monthly';
+  document.getElementById('kOk').textContent=ok;document.getElementById('kNok').textContent=nok;
+  document.getElementById('kOkS').textContent=tot?((ok/tot)*100).toFixed(1)+'%':'';
+  document.getElementById('kNokS').textContent=tot?((nok/tot)*100).toFixed(1)+'%':'';
+  document.getElementById('kNok').className='val'+(nok>0?' highlight-red':'');
+  const dates=fC.map(c=>c.InspDate).filter(Boolean).sort(),td=today(),toD=document.getElementById('fTo').value||td;
+  if(dates.length>=1){
+    const from=document.getElementById('fFrom').value||dates[0],biz=bizCount(from,toD);
+    const bdays=bizList(from,toD);
+    const actualWeeks=new Set(bdays.map(d=>d.substring(0,4)+'-W'+String(isoWk(d)).padStart(2,'0'))).size;
+    const actualMonths=new Set(bdays.map(d=>d.substring(0,7))).size;
+    const exp=(daily*biz)+(weekly*actualWeeks)+(monthly*actualMonths);
+
+    // Calculate UNIQUE completed machine-period pairs (not total inspection records)
+    const missedData=calcMissed();
+    const completed=exp-missedData.totalMissed;
+    const pct=exp>0?((completed/exp)*100).toFixed(1):0;
+
+    document.getElementById('kDone').textContent=completed;document.getElementById('kDoneS').textContent='of '+exp+' expected ('+tot+' records)';
+    document.getElementById('kMissed').textContent=missedData.totalMissed;document.getElementById('kMissed').className='val'+(missedData.totalMissed>0?' highlight-red':'');document.getElementById('kMissedS').textContent='unique machine-period gaps';
+    document.getElementById('kComp').textContent=pct+'%';document.getElementById('kComp').className='val'+(pct>=90?' highlight-green':pct>=70?' highlight-amber':' highlight-red');
+    document.getElementById('kCompS').textContent=from+' \u2014 '+toD+' ('+biz+' days)';
+    const bar=document.getElementById('kBar');bar.style.width=Math.min(100,pct)+'%';bar.style.background=pct>=90?'var(--green)':pct>=70?'var(--amber)':'var(--red)';
+  }else{['kDone','kComp','kMissed'].forEach(id=>document.getElementById(id).textContent='-');['kDoneS','kCompS','kMissedS'].forEach(id=>document.getElementById(id).textContent='');document.getElementById('kBar').style.width='0%'}
+}
+
+// Calendar - horizontal full width
+function renderCal(){
+  const grid=document.getElementById('calGrid'),td=today();
+  const dates=fC.map(c=>c.InspDate).filter(Boolean).sort();
+  // Use filtered range or last 21 days
+  const startD=document.getElementById('fFrom').value||(dates.length?dates[Math.max(0,dates.length-60)]:(() =>{const d=new Date(td+'T12:00:00');d.setDate(d.getDate()-20);return d.toISOString().slice(0,10)})());
+  const endD=document.getElementById('fTo').value||td;
+  const days=allDays(startD,endD);
+  if(days.length>120){grid.innerHTML='<p style="color:var(--text3);font-size:.78rem">Select a shorter date range to view the calendar (max 120 days).</p>';return}
+  const dailyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='daily'),exp=dailyM.length;
+  // Build inspection count by date using Title matching MachineID
+  const byDate={};fC.forEach(c=>{if(c.InspDate)byDate[c.InspDate]=(byDate[c.InspDate]||0)+1});
+  // Group by week (Mon-Sun)
+  const weeks=[];let currentWeek=[];
+  days.forEach((d,i)=>{const dow=new Date(d+'T12:00:00').getDay();if(i===0){const mondayOffset=(dow===0?6:dow-1);for(let p=0;p<mondayOffset;p++)currentWeek.push(null)}currentWeek.push(d);if(dow===0||i===days.length-1){while(currentWeek.length<7)currentWeek.push(null);weeks.push(currentWeek);currentWeek=[]}});
+
+  let html='<table class="cal-table"><thead><tr><th style="width:40px"></th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead><tbody>';
+  let lastMonth='';
+  weeks.forEach(wk=>{
+    const firstDay=wk.find(d=>d);if(!firstDay)return;
+    const wn=isoWk(firstDay);
+    const curMonth=firstDay.substring(0,7);
+    // Month separator row
+    if(curMonth!==lastMonth){const mIdx=parseInt(curMonth.split('-')[1])-1;const mYear=curMonth.split('-')[0];html+=`<tr><td></td><td colspan="7" style="font-size:.72rem;font-weight:700;color:var(--text);padding:10px 4px 4px;border:none;letter-spacing:.5px">${MN[mIdx]} ${mYear}</td></tr>`;lastMonth=curMonth}
+    html+=`<tr><td style="font-size:.58rem;color:var(--text3);font-weight:600;text-align:right;padding-right:6px">W${String(wn).padStart(2,'0')}</td>`;
+    wk.forEach(d=>{
+      if(!d){html+='<td></td>';return}
+      const biz=isBiz(d),fut=d>td,done=byDate[d]||0,isToday=d===td;
+      const dayNum=d.slice(8);
+      if(fut){html+=`<td><div class="cal-cell future${isToday?' today':''}">${dayNum}</div></td>`}
+      else if(!biz){html+=`<td><div class="cal-cell off">${dayNum}</div></td>`}
+      else{const pct=exp>0?Math.round((done/exp)*100):done>0?100:0;const cls=pct>=100?'perfect':pct>=75?'good':pct>0?'partial':'missed';
+        html+=`<td><div class="cal-cell ${cls}${isToday?' today':''}" title="${d}: ${done}/${exp}"><div class="cd">${dayNum}</div><div class="cp">${done}/${exp}</div></div></td>`}
+    });html+='</tr>'});
+  html+='</tbody></table>';grid.innerHTML=html;
+}
+
+// Charts - includes missed inspections
+Chart.defaults.color='#9b9da1';Chart.defaults.borderColor='#e5e5e5';
+const CL=['#5c5e62','#9b9da1','#c4c4c4','#e82127','#171a20','#888','#bbb','#666'];
+
+// Calculate missed inspections across all dimensions and frequencies
+function calcMissed(){
+  const dates=fC.map(c=>c.InspDate).filter(Boolean).sort(),td=today();
+  const startD=document.getElementById('fFrom').value||(dates.length?dates[0]:td);
+  const endD=document.getElementById('fTo').value||td;
+  const bdays=bizList(startD,endD);
+  const dailyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='daily');
+  const weeklyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='weekly');
+  const monthlyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='monthly');
+
+  // Build inspection lookup: machineKey|date
+  const inspSet=new Set();
+  // Also build per-week and per-month lookups
+  const inspByWeek=new Set(); // machineKey|YYYY-Wnn
+  const inspByMonth=new Set(); // machineKey|YYYY-MM
+  fC.forEach(c=>{if(c.InspDate&&c.Title){
+    const mk=c.Title.toLowerCase();
+    inspSet.add(mk+'|'+c.InspDate);
+    inspByWeek.add(mk+'|'+c.InspDate.substring(0,4)+'-W'+String(isoWk(c.InspDate)).padStart(2,'0'));
+    inspByMonth.add(mk+'|'+c.InspDate.substring(0,7));
+  }});
+
+  const missedBySC={},missedByMT={},missedByMonth={};
+  let totalMissed=0;
+  function addMissed(m,period){
+    totalMissed++;const sc=m.ServiceCenter||'?';const mt=m.MachineType||'?';
+    missedBySC[sc]=(missedBySC[sc]||0)+1;missedByMT[mt]=(missedByMT[mt]||0)+1;missedByMonth[period]=(missedByMonth[period]||0)+1;
+  }
+
+  // Daily: missed per business day
+  bdays.forEach(d=>{const mo=d.substring(0,7);dailyM.forEach(m=>{
+    const key=(m.MachineID||m.Title).toLowerCase()+'|'+d;
+    if(!inspSet.has(key))addMissed(m,mo)})});
+
+  // Weekly: missed per ISO week (only count once per week per machine)
+  const weeksInRange=new Set();bdays.forEach(d=>weeksInRange.add(d.substring(0,4)+'-W'+String(isoWk(d)).padStart(2,'0')));
+  weeksInRange.forEach(wk=>{
+    const moGuess=wk.substring(0,4)+'-'+String(Math.min(12,Math.max(1,Math.ceil(parseInt(wk.split('W')[1])*12/52)))).padStart(2,'0');
+    weeklyM.forEach(m=>{
+      const key=(m.MachineID||m.Title).toLowerCase()+'|'+wk;
+      if(!inspByWeek.has(key))addMissed(m,moGuess)})});
+
+  // Monthly: missed per calendar month (only count once per month per machine)
+  const monthsInRange=new Set();bdays.forEach(d=>monthsInRange.add(d.substring(0,7)));
+  monthsInRange.forEach(mo=>{monthlyM.forEach(m=>{
+    const key=(m.MachineID||m.Title).toLowerCase()+'|'+mo;
+    if(!inspByMonth.has(key))addMissed(m,mo)})});
+
+  return{totalMissed,missedBySC,missedByMT,missedByMonth};
+}
+
+function renderCharts(){dch('st');dch('sc');dch('tm');dch('mt');
+  const missed=calcMissed();
+  // Status donut — include missed
+  const c1={};fC.forEach(x=>{const s=x.Status||'?';c1[s]=(c1[s]||0)+1});
+  if(missed.totalMissed>0)c1['Missed']=missed.totalMissed;
+  const stLabels=Object.keys(c1),stColors=stLabels.map(x=>x==='Missed'?'#c4c4c4':isOk(x)?'#2e7d32':isNok(x)?'#c62828':'#9b9da1');
+  const totalWithMissed=Object.values(c1).reduce((a,b)=>a+b,0);
+  ci['st']=new Chart(document.getElementById('chSt'),{type:'doughnut',data:{labels:stLabels,datasets:[{data:Object.values(c1),backgroundColor:stColors,borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:10,usePointStyle:true,font:{size:10}}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed} (${(ctx.parsed/totalWithMissed*100).toFixed(1)}%)`}}}}});
+  // By SC — Passed, Failed, Missed only (no Other)
+  const s2={};fC.forEach(c=>{const sc=c.ServiceCenter||'?';if(!s2[sc])s2[sc]={ok:0,nok:0,mi:0};if(isOk(c.Status))s2[sc].ok++;else if(isNok(c.Status))s2[sc].nok++});
+  Object.keys(missed.missedBySC).forEach(sc=>{if(!s2[sc])s2[sc]={ok:0,nok:0,mi:0};s2[sc].mi=missed.missedBySC[sc]});
+  const l2=Object.keys(s2).sort();
+  ci['sc']=new Chart(document.getElementById('chSC'),{type:'bar',data:{labels:l2,datasets:[{label:'Passed',data:l2.map(x=>s2[x].ok),backgroundColor:'#2e7d32'},{label:'Failed',data:l2.map(x=>s2[x].nok),backgroundColor:'#c62828'},{label:'Missed',data:l2.map(x=>s2[x].mi),backgroundColor:'#c4c4c4'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,font:{size:10}}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true}}}});
+  // Monthly trend — labels as "Jan 26", "Feb 26" etc.
+  const m3={};fC.forEach(c=>{if(!c.InspDate)return;const mo=c.InspDate.substring(0,7);if(!m3[mo])m3[mo]={ok:0,nok:0,mi:0};if(isOk(c.Status))m3[mo].ok++;else if(isNok(c.Status))m3[mo].nok++});
+  Object.keys(missed.missedByMonth).forEach(mo=>{if(!m3[mo])m3[mo]={ok:0,nok:0,mi:0};m3[mo].mi=missed.missedByMonth[mo]});
+  const mo3=Object.keys(m3).sort();
+  const moLabels=mo3.map(m=>{const parts=m.split('-');return MN[parseInt(parts[1])-1]+' '+parts[0].slice(2)});
+  ci['tm']=new Chart(document.getElementById('chTm'),{type:'line',data:{labels:moLabels,datasets:[{label:'Passed',data:mo3.map(x=>m3[x].ok),borderColor:'#2e7d32',backgroundColor:'rgba(46,125,50,.05)',fill:true,tension:.3,borderWidth:2},{label:'Failed',data:mo3.map(x=>m3[x].nok),borderColor:'#c62828',backgroundColor:'rgba(198,40,40,.05)',fill:true,tension:.3,borderWidth:2},{label:'Missed',data:mo3.map(x=>m3[x].mi||0),borderColor:'#c4c4c4',backgroundColor:'rgba(196,196,196,.08)',fill:true,tension:.3,borderWidth:2,borderDash:[4,4]}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{usePointStyle:true,font:{size:10}}}},scales:{y:{beginAtZero:true}}}});
+  // By Machine Type — include missed
+  const c4={};fC.forEach(x=>{const mt=x.MachineType||'?';if(!c4[mt])c4[mt]={done:0,mi:0};c4[mt].done++});
+  Object.keys(missed.missedByMT).forEach(mt=>{if(!c4[mt])c4[mt]={done:0,mi:0};c4[mt].mi=missed.missedByMT[mt]});
+  const l4=Object.keys(c4).sort();
+  ci['mt']=new Chart(document.getElementById('chMT'),{type:'bar',data:{labels:l4,datasets:[{label:'Completed',data:l4.map(x=>c4[x].done),backgroundColor:'#5c5e62'},{label:'Missed',data:l4.map(x=>c4[x].mi),backgroundColor:'#c4c4c4'}]},options:{responsive:true,indexAxis:l4.length>5?'y':'x',plugins:{legend:{position:'bottom',labels:{usePointStyle:true,font:{size:10}}}},scales:{x:{stacked:true,beginAtZero:true,grid:{display:false}},y:{stacked:true,beginAtZero:true}}}});
+}
+function dch(n){if(ci[n]){ci[n].destroy();delete ci[n]}}
+
+// Sort
+function sfn(col,dir){return(a,b)=>{let va=a[col]??'',vb=b[col]??'';if(typeof va==='string')va=va.toLowerCase();if(typeof vb==='string')vb=vb.toLowerCase();return va<vb?-1*dir:va>vb?dir:0}}
+function sC(c){if(cc===c)cd*=-1;else{cc=c;cd=-1}rCT()}
+function sM(c){if(mc===c)md*=-1;else{mc=c;md=-1}rMT()}
+function sF(c){if(fc===c)fd*=-1;else{fc=c;fd=-1}rFT()}
+
+// Tables
+function rCT(){const q=(document.getElementById('cSrch').value||'').toLowerCase();let d=fC;if(q)d=d.filter(c=>Object.values(c).some(v=>v&&String(v).toLowerCase().includes(q)));d=[...d].sort(sfn(cc,cd));const tp=Math.max(1,Math.ceil(d.length/PS));if(cp>tp)cp=tp;const s=(cp-1)*PS,pd=d.slice(s,s+PS);document.getElementById('cBody').innerHTML=pd.map(c=>`<tr><td>${c.InspDate||'-'}</td><td>${esc(c.Week)}</td><td>${esc(c.ServiceCenter)}</td><td>${esc(c.MachineType)}</td><td>${esc(c.ToolType)}</td><td style="font-weight:500">${esc(c.Title)}</td><td>${sb(c.Status)}</td><td>${esc(c.Inspector)}</td><td title="${esc(c.Notes)}">${trn(c.Notes,30)}</td></tr>`).join('');document.getElementById('cCnt').textContent=`(${d.length})`;document.getElementById('cInfo').textContent=d.length?`${s+1}\u2013${Math.min(s+PS,d.length)} of ${d.length}`:'';rPg('cPag',cp,tp,p=>{cp=p;rCT()})}
+
+function rMT(){const q=(document.getElementById('mSrch').value||'').toLowerCase();let d=fM;if(q)d=d.filter(m=>Object.values(m).some(v=>v&&String(v).toLowerCase().includes(q)));d=[...d].sort(sfn(mc,md));const tp=Math.max(1,Math.ceil(d.length/PS));if(mp>tp)mp=tp;const s=(mp-1)*PS,pd=d.slice(s,s+PS);document.getElementById('mBody').innerHTML=pd.map(m=>`<tr><td style="font-weight:500">${esc(m.Title)}</td><td style="color:var(--text3);font-family:monospace;font-size:.72rem">${esc(m.MachineID)}</td><td>${esc(m.ServiceCenter)}</td><td>${esc(m.MachineType)}</td><td>${esc(m.ToolType)}</td><td>${esc(m.SerialNumber)}</td><td>${esc(m.Frequency)}</td><td>${m.LastInspection||'-'}</td><td>${sb(m.LastStatus)}</td></tr>`).join('');document.getElementById('mCnt').textContent=`(${d.length})`;document.getElementById('mInfo').textContent=d.length?`${s+1}\u2013${Math.min(s+PS,d.length)} of ${d.length}`:'';rPg('mPag',mp,tp,p=>{mp=p;rMT()})}
+
+function rFT(){const q=(document.getElementById('fSrch').value||'').toLowerCase();let d=fC.filter(c=>isNok(c.Status));if(q)d=d.filter(c=>Object.values(c).some(v=>v&&String(v).toLowerCase().includes(q)));d=[...d].sort(sfn(fc,fd));const tp=Math.max(1,Math.ceil(d.length/PS));if(fp>tp)fp=tp;const s=(fp-1)*PS,pd=d.slice(s,s+PS);document.getElementById('fBody').innerHTML=pd.map(c=>`<tr><td>${c.InspDate||'-'}</td><td>${esc(c.ServiceCenter)}</td><td>${esc(c.MachineType)}</td><td style="font-weight:500">${esc(c.Title)}</td><td>${sb(c.Status)}</td><td>${esc(c.Inspector)}</td><td title="${esc(c.Notes)}">${trn(c.Notes,30)}</td></tr>`).join('');document.getElementById('fCnt').textContent=`(${d.length})`;document.getElementById('fInfo').textContent=d.length?`${s+1}\u2013${Math.min(s+PS,d.length)} of ${d.length}`:'No failed inspections';rPg('fPag',fp,tp,p=>{fp=p;rFT()})}
+
+// Missed - handles Daily (per day), Weekly (per week), Monthly (per month)
+function renderMissed(){
+  const el=document.getElementById('miMat'),sum=document.getElementById('miSum');
+  const dates=fC.map(c=>c.InspDate).filter(Boolean).sort();
+  const td=today();
+  const startD=document.getElementById('fFrom').value||(dates.length>0?dates[0]:td);
+  const endD=document.getElementById('fTo').value||td;
+  const bdays=bizList(startD,endD);
+  const dailyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='daily');
+  const weeklyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='weekly');
+  const monthlyM=fM.filter(m=>(m.Frequency||'').toLowerCase()==='monthly');
+  if(!dailyM.length&&!weeklyM.length&&!monthlyM.length){el.innerHTML='<p style="color:var(--text3);font-size:.78rem">No machines with defined frequency in current filter.</p>';sum.innerHTML='';return}
+
+  // Inspection lookups
+  const inspSet=new Set(),inspByWeek=new Set(),inspByMonth=new Set();
+  fC.forEach(c=>{if(c.InspDate&&c.Title){const mk=c.Title.toLowerCase();inspSet.add(mk+'|'+c.InspDate);inspByWeek.add(mk+'|'+c.InspDate.substring(0,4)+'-W'+String(isoWk(c.InspDate)).padStart(2,'0'));inspByMonth.add(mk+'|'+c.InspDate.substring(0,7))}});
+
+  let totalMissed=0,totalExpected=0,html='';
+
+  // DAILY matrix - last 15 business days to fit screen
+  if(dailyM.length&&bdays.length){
+    const cols=bdays.slice(-15);
+    html+='<h4 style="font-size:.72rem;color:var(--text2);margin:8px 0 4px;font-weight:600">Daily Machines (last '+cols.length+' business days)</h4>';
+    html+='<table class="matrix-table"><thead><tr><th style="text-align:left;width:110px">Machine</th>';
+    cols.forEach(d=>{const dt=new Date(d+'T12:00:00');html+=`<th>${DN[dt.getDay()].charAt(0)}<br>${d.slice(8)}/${d.slice(5,7)}</th>`});
+    html+='</tr></thead><tbody>';
+    dailyM.sort((a,b)=>(a.MachineID||a.Title).localeCompare(b.MachineID||b.Title)).forEach(m=>{
+      const mid=m.MachineID||m.Title,lk=mid.toLowerCase();
+      html+=`<tr><td class="mid" title="${esc(mid)}">${esc(mid)}</td>`;
+      cols.forEach(d=>{totalExpected++;const done=inspSet.has(lk+'|'+d);if(!done){totalMissed++;html+=`<td class="missed">\u2716</td>`}else html+=`<td class="done">\u2714</td>`});
+      html+='</tr>'});
+    html+='</tbody></table>';
+  }
+
+  // WEEKLY matrix
+  if(weeklyM.length){
+    const weeksArr=[...new Set(bdays.map(d=>d.substring(0,4)+'-W'+String(isoWk(d)).padStart(2,'0')))].sort();
+    if(weeksArr.length>0){
+      html+='<h4 style="font-size:.72rem;color:var(--text2);margin:14px 0 4px;font-weight:600">Weekly Machines</h4>';
+      html+='<table class="matrix-table"><thead><tr><th style="text-align:left;width:110px">Machine</th>';
+      weeksArr.forEach(w=>html+=`<th>${w.split('-')[1]}</th>`);
+      html+='</tr></thead><tbody>';
+      weeklyM.sort((a,b)=>(a.MachineID||a.Title).localeCompare(b.MachineID||b.Title)).forEach(m=>{
+        const mid=m.MachineID||m.Title,lk=mid.toLowerCase();
+        html+=`<tr><td class="mid">${esc(mid)}</td>`;
+        weeksArr.forEach(w=>{totalExpected++;const done=inspByWeek.has(lk+'|'+w);if(!done){totalMissed++;html+=`<td class="missed">\u2716</td>`}else html+=`<td class="done">\u2714</td>`});
+        html+='</tr>'});
+      html+='</tbody></table>';
+    }
+  }
+
+  // MONTHLY matrix
+  if(monthlyM.length){
+    const monthsArr=[...new Set(bdays.map(d=>d.substring(0,7)))].sort();
+    if(monthsArr.length>0){
+      html+='<h4 style="font-size:.72rem;color:var(--text2);margin:14px 0 4px;font-weight:600">Monthly Machines</h4>';
+      html+='<table class="matrix-table"><thead><tr><th style="text-align:left;width:110px">Machine</th>';
+      monthsArr.forEach(mo=>html+=`<th>${MN[parseInt(mo.split('-')[1])-1]}</th>`);
+      html+='</tr></thead><tbody>';
+      monthlyM.sort((a,b)=>(a.MachineID||a.Title).localeCompare(b.MachineID||b.Title)).forEach(m=>{
+        const mid=m.MachineID||m.Title,lk=mid.toLowerCase();
+        html+=`<tr><td class="mid">${esc(mid)}</td>`;
+        monthsArr.forEach(mo=>{totalExpected++;const done=inspByMonth.has(lk+'|'+mo);if(!done){totalMissed++;html+=`<td class="missed">\u2716</td>`}else html+=`<td class="done">\u2714</td>`});
+        html+='</tr>'});
+      html+='</tbody></table>';
+    }
+  }
+
+  el.innerHTML=html||'<p style="color:var(--text3)">No data to display.</p>';
+  const completed=totalExpected-totalMissed;
+  sum.innerHTML=`<span>Daily: <b>${dailyM.length}</b></span> <span>Weekly: <b>${weeklyM.length}</b></span> <span>Monthly: <b>${monthlyM.length}</b></span> <span>Expected: <b>${totalExpected}</b></span> <span style="color:var(--green)">Completed: <b>${completed}</b></span> <span style="color:var(--red)">Missed: <b>${totalMissed}</b></span> <span>Rate: <b>${totalExpected>0?((completed/totalExpected)*100).toFixed(1):0}%</b></span>`;
+}
+
+// Pagination
+function rPg(id,cur,tot,fn){const div=document.getElementById(id);if(tot<=1){div.innerHTML='';return}let h=`<button ${cur===1?'disabled':''}>\u25C0</button>`;const r=pgR(cur,tot);r.forEach(p=>{h+=p==='...'?'<button disabled>...</button>':`<button class="${p===cur?'active':''}">${p}</button>`});h+=`<button ${cur===tot?'disabled':''}>\u25B6</button>`;div.innerHTML=h;const b=div.querySelectorAll('button');b[0].onclick=()=>{if(cur>1)fn(cur-1)};b[b.length-1].onclick=()=>{if(cur<tot)fn(cur+1)};r.forEach((p,i)=>{if(p!=='...')b[i+1].onclick=()=>fn(p)})}
+function pgR(c,t){if(t<=7)return Array.from({length:t},(_,i)=>i+1);const p=[1];if(c>3)p.push('...');for(let i=Math.max(2,c-1);i<=Math.min(t-1,c+1);i++)p.push(i);if(c<t-2)p.push('...');p.push(t);return p}
+
+function tab(t){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));document.getElementById('tab-'+t).classList.add('active')}
+
+function exportCSV(){const h=['Date','Week','ServiceCenter','MachineType','ToolType','Machine','Status','Inspector','Notes'];const rows=fC.map(c=>[c.InspDate,c.Week,c.ServiceCenter,c.MachineType,c.ToolType,c.Title,c.Status,c.Inspector,(c.Notes||'').replace(/[\r\n]+/g,' ')]);let csv='\uFEFF'+h.join(';')+'\n';rows.forEach(r=>{csv+=r.map(v=>`"${(v??'').replace(/"/g,'""')}"`).join(';')+'\n'});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download=`tooltrack-${new Date().toISOString().slice(0,10)}.csv`;a.click()}
+
+function esc(s){if(s==null)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
+function trn(s,n){if(!s)return'';const t=String(s);return t.length>n?esc(t.substring(0,n))+'\u2026':esc(t)}
+function sb(s){if(!s)return'<span class="badge badge-na">\u2014</span>';if(isOk(s))return`<span class="badge badge-ok">${esc(s)}</span>`;if(isNok(s))return`<span class="badge badge-nok">${esc(s)}</span>`;return`<span class="badge badge-warn">${esc(s)}</span>`}
+function showErr(m){const e=document.getElementById('err');e.textContent=m;e.classList.add('active')}
+
+window.addEventListener('DOMContentLoaded',load);
+</script>
+</body>
+</html>
