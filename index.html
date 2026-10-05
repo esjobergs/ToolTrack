@@ -166,8 +166,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <span><span class="cal-dot" style="background:var(--amber-bg);border:1px solid #ffecb3"></span>1-74%</span>
       <span><span class="cal-dot" style="background:var(--red-bg);border:1px solid #ffcdd2"></span>0%</span>
       <span><span class="cal-dot" style="background:var(--surface2);border:1px solid var(--border)"></span>Off / Future</span>
-      <span>Day n/n = daily machines</span>
-      <span>Under week = weekly machines</span>
+      <span>Day n/n = daily that day, plus weekly if done once that week</span>
       <span>&#9632; = Today</span>
     </div>
   </div>
@@ -228,7 +227,7 @@ function liveSCs(){return (ms.fSC?.opts||[]).filter(o=>o&&!isTestSC(o))}
 function isDefaultSC(){const s=ms.fSC;if(!s)return false;const live=liveSCs();return s.sel.size===live.length&&live.every(o=>s.sel.has(o))}
 function setDefaultSC(){const s=ms.fSC;if(!s)return;s.sel=new Set(liveSCs());rMS('fSC',s.opts);uML('fSC')}
 function scAllowed(center){const sc=msG('fSC');if(isTestSC(center)&&![...sc].some(isTestSC))return false;if(sc.size&&!sc.has(center))return false;return true}
-function uML(id){const s=ms[id],sp=document.getElementById(id).querySelector('.ms-btn span');const opts=(s.opts||[]).filter(Boolean);if(id==='fSC'&&(s.sel.size===0||isDefaultSC())){sp.textContent='All except TEST';return}if(s.sel.size===0||s.sel.size===opts.length){sp.textContent='All';return}sp.textContent=s.sel.size===1?[...s.sel][0]:s.sel.size+' sel.'}
+function uML(id){const s=ms[id],sp=document.getElementById(id).querySelector('.ms-btn span');const opts=(s.opts||[]).filter(Boolean);if(id==='fSC'&&(s.sel.size===0||isDefaultSC())){sp.textContent='All';return}if(s.sel.size===0||s.sel.size===opts.length){sp.textContent='All';return}sp.textContent=s.sel.size===1?[...s.sel][0]:s.sel.size+' sel.'}
 function tglP(id){document.querySelectorAll('.ms-panel.open').forEach(p=>{if(p.id!==id+'_p')p.classList.remove('open')});document.getElementById(id+'_p').classList.toggle('open')}
 function msA(id){if(id==='fSC'){setDefaultSC();return}ms[id].sel.clear();rMS(id,ms[id].opts);uML(id)}
 function msN(id){ms[id].sel.clear();document.getElementById(id+'_l').querySelectorAll('input').forEach(cb=>cb.checked=false);uML(id)}
@@ -337,22 +336,19 @@ function renderCal(){
     const firstDay=wk.find(d=>d);if(!firstDay)return;
     const wn=isoWk(firstDay),curMonth=firstDay.substring(0,7);
     if(curMonth!==lastMonth){const mIdx=parseInt(curMonth.split('-')[1])-1;const mYear=curMonth.split('-')[0];html+=`<tr><td></td><td colspan="7" style="font-size:.72rem;font-weight:700;color:var(--text);padding:10px 4px 4px;border:none;letter-spacing:.5px">${MN[mIdx]} ${mYear}</td></tr>`;lastMonth=curMonth}
-    let wkScore='';
-    if(weeklyM.length){
-      const wid=weekId(firstDay),wd=weeklyM.reduce((n,m)=>n+(hit(inspWeek,m,wid)?1:0),0);
-      wkScore=`<div class="wk-score" style="color:${scoreColor(wd,weeklyM.length)}" title="Weekly machines this week">${wd}/${weeklyM.length}</div>`;
-    }
-    html+=`<tr><td style="font-size:.58rem;color:var(--text3);font-weight:600;text-align:right;padding-right:6px;line-height:1.15">W${String(wn).padStart(2,'0')}${wkScore}</td>`;
+    html+=`<tr><td style="font-size:.58rem;color:var(--text3);font-weight:600;text-align:right;padding-right:6px">W${String(wn).padStart(2,'0')}</td>`;
     wk.forEach(d=>{
       if(!d){html+='<td></td>';return}
       const biz=isBiz(d),fut=d>td,isToday=d===td,dayNum=d.slice(8);
       if(d<LAUNCH){html+=`<td><div class="cal-cell off${isToday?' today':''}" title="${d}: before launch">${dayNum}</div></td>`;return}
       if(fut){html+=`<td><div class="cal-cell future${isToday?' today':''}">${dayNum}</div></td>`;return}
       if(!biz){html+=`<td><div class="cal-cell off">${dayNum}</div></td>`;return}
-      const exp=dailyM.length,done=dailyM.reduce((n,m)=>n+(hit(inspDay,m,d)?1:0),0);
-      if(!exp){html+=`<td><div class="cal-cell off${isToday?' today':''}" title="${d}: no daily machines in filter"><div class="cd">${dayNum}</div></div></td>`;return}
+      const wid=weekId(d);
+      const exp=dailyM.length+weeklyM.length;
+      const done=dailyM.reduce((n,m)=>n+(hit(inspDay,m,d)?1:0),0)+weeklyM.reduce((n,m)=>n+(hit(inspWeek,m,wid)?1:0),0);
+      if(!exp){html+=`<td><div class="cal-cell off${isToday?' today':''}" title="${d}: no daily or weekly machines in filter"><div class="cd">${dayNum}</div></div></td>`;return}
       const pct=Math.round((done/exp)*100),cls=pct>=100?'perfect':pct>=75?'good':pct>0?'partial':'missed';
-      html+=`<td><div class="cal-cell ${cls}${isToday?' today':''}" title="${d}: ${done}/${exp} daily machines"><div class="cd">${dayNum}</div><div class="cp">${done}/${exp}</div></div></td>`;
+      html+=`<td><div class="cal-cell ${cls}${isToday?' today':''}" title="${d}: ${done}/${exp}. Daily need that day. Weekly need once this week, then every day counts."><div class="cd">${dayNum}</div><div class="cp">${done}/${exp}</div></div></td>`;
     });
     html+='</tr>';
   });
