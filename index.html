@@ -199,7 +199,7 @@ function today(){return new Date(new Date().setHours(12,0,0,0)).toISOString().sl
 
 function spV(v){if(v==null)return'';if(typeof v==='string')return v;if(typeof v==='number')return v;if(typeof v==='boolean')return v;if(v.Value!==undefined)return v.Value;if(v.LookupValue!==undefined)return v.LookupValue;if(v.DisplayName!==undefined)return v.DisplayName;if(v.Email!==undefined)return v.Email;if(Array.isArray(v))return v.map(spV).join(', ');return String(v)}
 function pDate(d){if(!d)return'';const m=String(d).match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:''}
-function fDate(o){for(const k of['Modified','modified','CheckDate','checkdate','Date','date','Created']){if(o[k]){const p=pDate(o[k]);if(p)return p}}for(const k of Object.keys(o)){const m=String(o[k]||'').match(/^(\d{4}-\d{2}-\d{2})/);if(m)return m[1]}return''}
+function fDate(o){for(const k of['CheckDate','checkdate','Created','created']){if(o[k]){const p=pDate(o[k]);if(p)return p}}return''}
 function isoWk(ds){if(!ds)return 0;const d=new Date(ds+'T12:00:00');d.setDate(d.getDate()+3-((d.getDay()+6)%7));const ys=new Date(d.getFullYear(),0,4);ys.setDate(ys.getDate()+3-((ys.getDay()+6)%7));return 1+Math.round((d-ys)/604800000)}
 function wkL(ds){return ds?'W'+String(isoWk(ds)).padStart(2,'0'):''}
 
